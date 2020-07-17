@@ -1,5 +1,5 @@
 {
-  "name": "zc/zview",
+  "name": "zv/zview",
   "type": "library",
   "description": "a simple php template engine, support swoole/php-fpm, high performance, easy, flexible, single file.",
   "keywords": [

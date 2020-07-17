@@ -1,6 +1,6 @@
 <?php
 
-namespace ZC;
+namespace ZV;
 /**
  * Class ZView
  * Author: dj

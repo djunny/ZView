@@ -11,10 +11,10 @@ include '../src/ZView.php';
  *
  * @param bool $callback
  *
- * @return \ZC\ZView
+ * @return \ZV\ZView
  */
 function view($callback = FALSE) {
-    $zview = new ZC\ZView([
+    $zview = new ZV\ZView([
         'tpl_ext'    => '.htm',
         'tpl_prefix' => 'tpl',
         'tmp_path'   => __DIR__ . '/tmp/',
@@ -33,7 +33,7 @@ function view($callback = FALSE) {
  *
  * @param $resp
  *
- * @return \ZC\ZView
+ * @return \ZV\ZView
  */
 function swoole_view($resp) {
     return view(function (...$args) use ($resp) {

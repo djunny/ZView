@@ -1,0 +1,13 @@
+<!--{block hello($name)}-->
+<!--{if $name}-->
+hello, {$name}.
+<!--{else}-->
+hello, guest.
+<!--{/if}-->
+<!--{/block}-->
+
+<h1>{block_hello($name)}</h1>
+
+{block_hello('test')}
+
+{echo('test')}

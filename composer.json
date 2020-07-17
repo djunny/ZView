@@ -1,0 +1,32 @@
+{
+  "name": "zc/zview",
+  "type": "library",
+  "description": "a simple php template engine, support swoole/php-fpm, high performance, easy, flexible, single file.",
+  "keywords": [
+    "php",
+    "template engine",
+    "swoole",
+    "php-fpm",
+    "performance",
+    "easy",
+    "flexible"
+  ],
+  "homepage": "https://github.com/djunny/ZView",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "djunny",
+      "email": "github@djunny.com",
+      "homepage": "http://djunny.com",
+      "role": "Developer"
+    }
+  ],
+  "require": {
+    "php": ">=5.3.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "ZC\\": "src"
+    }
+  }
+}

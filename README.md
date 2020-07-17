@@ -1,6 +1,13 @@
 # ZView
 a simple php template engine, support swoole/php-fpm, high performance, easy, flexible, single file.
 
+### Installation
+
+```
+composer require zv/zview
+```
+
+
 
 ### BASE
 

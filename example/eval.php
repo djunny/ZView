@@ -9,4 +9,4 @@ include './function.php';
 
 view()->bind([
     'name' => 'eval',
-])->show('hello');
+])->show('eval');

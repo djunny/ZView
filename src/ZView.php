@@ -1,68 +1,78 @@
 <?php
 
 namespace ZV;
+
+use Exception;
+
 /**
  * Class ZView
  * Author: dj
  * Date: 2020/7/16
- * Time: 下午12:59
+ * Time: 下午12:59.
  */
-class ZView
-{
+class ZView {
     private $conf             = [];
+
     private $vars             = [];
+
     private $last_object_file = '';
+
     private $last_used_time   = 0;
-    private $echo             = FALSE;
+
+    private $echo             = false;
 
     /**
-     *
      * @var string
-     * $abc[a][b][$c] legal
-     * $abc[$a[b]]    illegal
+     *             $abc[a][b][$c] legal
+     *             $abc[$a[b]]    illegal
      */
-    private $var_regexp = "\@?\\\$[a-zA-Z_]\w*(?:\[[\w\.\"\'\-\$]+\])*";
+    private $var_regexp = "\\@?\\\$[a-zA-Z_]\\w*(?:\\[[\\w\\.\"\\'\\-\$]+\\])*";
+
     /**
-     * variable tag regexp
+     * variable tag regexp.
      *
      * @var string
      */
-    private $vtag_regexp = "\<\?=(\@?\\\$[a-zA-Z_]\w*(?:\[[\w\.\"\'\[\]\$]+\])*)\?\>";
+    private $vtag_regexp = "\\<\\?=(\\@?\\\$[a-zA-Z_]\\w*(?:\\[[\\w\\.\"\\'\\[\\]\$]+\\])*)\\?\\>";
+
     /*private $isset_regexp = '<\?php echo isset\(.+?\) \? (?:.+?) : \'\';\?>';*/
 
     /**
-     * const regexp
+     * const regexp.
      *
      * @var string
      */
-    private $const_regexp = "\{([\w]+)\}";
+    private $const_regexp = '\\{([\\w]+)\\}';
+
     /**
-     * eval regexp
+     * eval regexp.
      *
      * @var string
      */
-    private $eval_regexp = "#(?:<!--\{(eval))\s+?(.*?)\s*\}-->#is";
-    /**
-     * tag search
-     *
-     * @var array
-     */
-    private $tag_search = array();
-    /**
-     * tag replace
-     *
-     * @var array
-     */
-    private $tag_replace = array();
+    private $eval_regexp = '#(?:<!--\\{(eval))\\s+?(.*?)\\s*\\}-->#is';
 
     /**
-     * sub templates
+     * tag search.
      *
      * @var array
      */
-    private $sub_tpl = array();
+    private $tag_search = [];
 
-    public function __construct($conf, $echo = FALSE) {
+    /**
+     * tag replace.
+     *
+     * @var array
+     */
+    private $tag_replace = [];
+
+    /**
+     * sub templates.
+     *
+     * @var array
+     */
+    private $sub_tpl = [];
+
+    public function __construct($conf, $echo = false) {
         $this->conf = array_merge([
             'tpl_ext'    => '.htm',
             'tpl_prefix' => 'tpl',
@@ -95,62 +105,13 @@ class ZView
         return $this;
     }
 
-
     /**
-     * get compile template object file
+     * find template in view path & get compile template.
      *
      * @param $filename
      *
-     * @return string
-     */
-    private function get_compile_path($filename) {
-        $filename     = $this->get_template_ext($filename);
-        $fix_filename = strtr($filename, array('/' => '#', '\\' => '#', ':' => '#'));
-        $cache_prefix = $this->conf['tpl_prefix'];
-        $obj_file     = $this->conf['tmp_path'] . $cache_prefix . '_' . $fix_filename . '.php';
-        return $obj_file;
-    }
-
-    /**
-     * get compile template by ext
-     *
-     * @param $filename
-     *
-     * @return string
-     */
-    private function get_template_ext($filename) {
-        if (strpos($filename, '.') === FALSE) {
-            $filename .= $this->conf['tpl_ext'];
-        }
-        return $filename;
-    }
-
-    /**
-     * find exists template path
-     *
-     * @param $filename
-     *
-     * @return string
-     */
-    private function find_origin_path($filename) {
-        $filename = $this->get_template_ext($filename);
-        foreach ($this->conf['view_path'] as $path) {
-            if (is_file($path . $filename)) {
-                $file = $path . $filename;
-                break;
-            }
-        }
-        return $file;
-    }
-
-
-    /**
-     * find template in view path & get compile template
-     *
-     * @param $filename
-     *
-     * @return string
      * @throws Exception
+     * @return string
      */
     public function get_compile_tpl($filename) {
         $obj_file      = $this->get_compile_path($filename);
@@ -173,21 +134,21 @@ class ZView
             if ($is_obj_exists) {
                 return $obj_file;
             }
-            throw new Exception("template not found: $filename");
+            throw new Exception("template not found: {$filename}");
         }
         $file_mtime_old = $file_mtime = 0;
         if ($is_obj_exists) {
             // compare modify time of file
             $file_mtime = filemtime($file);
-            if (!$file_mtime) {
-                throw new Exception("template stat error: $filename ");
+            if (! $file_mtime) {
+                throw new Exception("template stat error: {$filename} ");
             }
             $file_mtime_old = $is_obj_exists ? filemtime($obj_file) : 0;
         }
 
-        if (!$is_obj_exists || $file_mtime_old < $file_mtime) {
+        if (! $is_obj_exists || $file_mtime_old < $file_mtime) {
             // create tmp path
-            !is_dir($this->conf['tmp_path']) && mkdir($this->conf['tmp_path'], 0755, 1);
+            ! is_dir($this->conf['tmp_path']) && mkdir($this->conf['tmp_path'], 0755, 1);
             // compile template
             $this->compile($file, $obj_file);
         }
@@ -195,77 +156,14 @@ class ZView
     }
 
     /**
-     * compile template
-     *
-     * @param $file
-     * @param $obj_file
-     *
-     * @return mixed
-     * @throws Exception
-     */
-    private function compile($file, $obj_file) {
-        $s = file_get_contents($file);
-        // load sub template
-        for ($i = 0; $i < 4; $i++) {
-            $s = preg_replace_callback("#<!--{template\s+([^}]*?)}-->#i", array($this, 'get_tpl'), $s);
-        }
-        // compile block
-        $this->compile_block($s);
-
-        // replace variable by regexp
-        $s = preg_replace("#(\{" . $this->var_regexp . "\}|" . $this->var_regexp . ")#i", "<?=\\1?>", $s);
-        if (strpos($s, '<?={') !== FALSE) {
-            $s = preg_replace("#\<\?={(.+?)}\?\>#", "<?=\\1?>", $s);//
-        }
-
-        // fix $data[key] -> $data['key']
-        $s = preg_replace_callback("#\<\?=(\@?\\\$[a-zA-Z_]\w*)((\[[^\]]+\])+)\?\>#is", array($this, 'array_index'), $s);
-
-        // loop
-        for ($i = 0; $i < 4; $i++) {
-            $s = preg_replace_callback("#\{loop\s+$this->vtag_regexp\s+$this->vtag_regexp\s+$this->vtag_regexp\}(.+?)\{\/loop\}#is", array($this, 'loop_section'), $s);
-            $s = preg_replace_callback("#\{loop\s+$this->vtag_regexp\s+$this->vtag_regexp\}(.+?)\{\/loop\}#is", array($this, 'loop_section'), $s);
-        }
-        // if / elseif
-        $s = preg_replace_callback("#\{(if|elseif)\s+(.*?)\}#is", array($this, 'stripvtag_callback'), $s);
-
-        // else
-        $s = preg_replace("#\{else\}#is", "<?}else { ?>", $s);
-        // end if
-        $s = preg_replace("#\{\/(if)\}#is", "<?}?>", $s);
-        // end block
-        $s = preg_replace("#\{\/(block)\}#is", "<?}?>", $s);
-        // {else}
-        $s = preg_replace("#" . $this->const_regexp . "#", "<?=\\1?>", $s);
-
-        // check key of array
-        $s = preg_replace_callback("#\<\?=\@(\\\$[a-zA-Z_]\w*)((\[[\\$\[\]\w\']+\])+)\?\>#is", array($this, 'array_keyexists'), $s);
-        // replace special tags
-        if ($this->tag_search) {
-            $s = str_replace($this->tag_search, $this->tag_replace, $s);
-            // maybe eval in javascript
-            if (strpos($s, '<!--[') !== FALSE) {
-                $s = str_replace($this->tag_search, $this->tag_replace, $s);
-            }
-        }
-        // compile output function
-        $s = $this->compile_output($s, '$this->rewrite_echo');
-
-        if (!file_put_contents($obj_file, $s)) {
-            throw new Exception("template stat error: " . $file);
-        }
-        return $obj_file;
-    }
-
-    /**
-     * search view path to find tpl path
+     * search view path to find tpl path.
      *
      * @param $filename
      *
      * @return string
      */
     public function get_tpl($filename) {
-        if (!isset($filename[1])) {
+        if (! isset($filename[1])) {
             return '';
         }
         $filepath = $this->find_origin_path($filename);
@@ -275,7 +173,151 @@ class ZView
     }
 
     /**
-     * compile output
+     * show template.
+     *
+     * @param $file
+     *
+     * @throws Exception
+     */
+    public function show($file) {
+        $start_time = microtime(1);
+        //error_reporting(E_ALL);
+        //log::info(1, $file);
+        $this->last_object_file = $this->get_compile_tpl($file);
+        //log::info(2, $object_file);
+        extract($this->vars);
+        /*$object_body = file_get_contents($object_file);
+        $object_body = base64_encode($object_body);
+        include("data://text/plain;base64," . $object_file);*/
+
+        include $this->last_object_file;
+
+        $this->last_used_time = microtime(1) - $start_time;
+    }
+
+    /**
+     * get debug info.
+     *
+     * @return array
+     */
+    public function get_debug_info() {
+        return [
+            'object_file' => $this->last_object_file,
+            'use_time'    => $this->last_used_time,
+        ];
+    }
+
+    /**
+     * get compile template object file.
+     *
+     * @param $filename
+     *
+     * @return string
+     */
+    private function get_compile_path($filename) {
+        $filename     = $this->get_template_ext($filename);
+        $fix_filename = strtr($filename, ['/' => '#', '\\' => '#', ':' => '#']);
+        $cache_prefix = $this->conf['tpl_prefix'];
+        return $this->conf['tmp_path'] . $cache_prefix . '_' . $fix_filename . '.php';
+    }
+
+    /**
+     * get compile template by ext.
+     *
+     * @param $filename
+     *
+     * @return string
+     */
+    private function get_template_ext($filename) {
+        if (strpos($filename, '.') === false) {
+            $filename .= $this->conf['tpl_ext'];
+        }
+        return $filename;
+    }
+
+    /**
+     * find exists template path.
+     *
+     * @param $filename
+     *
+     * @return string
+     */
+    private function find_origin_path($filename) {
+        $filename = $this->get_template_ext($filename);
+        foreach ($this->conf['view_path'] as $path) {
+            if (is_file($path . $filename)) {
+                $file = $path . $filename;
+                break;
+            }
+        }
+        return $file;
+    }
+
+    /**
+     * compile template.
+     *
+     * @param $file
+     * @param $obj_file
+     *
+     * @throws Exception
+     * @return mixed
+     */
+    private function compile($file, $obj_file) {
+        $s = file_get_contents($file);
+        // load sub template
+        for ($i = 0; $i < 4; ++$i) {
+            $s = preg_replace_callback('#<!--{template\\s+([^}]*?)}-->#i', [$this, 'get_tpl'], $s);
+        }
+        // compile block
+        $this->compile_block($s);
+
+        // replace variable by regexp
+        $s = preg_replace('#(\\{' . $this->var_regexp . '\\}|' . $this->var_regexp . ')#i', '<?=\\1?>', $s);
+        if (strpos($s, '<?={') !== false) {
+            $s = preg_replace('#\\<\\?={(.+?)}\\?\\>#', '<?=\\1?>', $s);
+        }
+
+        // fix $data[key] -> $data['key']
+        $s = preg_replace_callback('#\\<\\?=(\\@?\\$[a-zA-Z_]\\w*)((\\[[^\\]]+\\])+)\\?\\>#is', [$this, 'array_index'], $s);
+
+        // loop
+        for ($i = 0; $i < 4; ++$i) {
+            $s = preg_replace_callback("#\\{loop\\s+{$this->vtag_regexp}\\s+{$this->vtag_regexp}\\s+{$this->vtag_regexp}\\}(.+?)\\{\\/loop\\}#is", [$this, 'loop_section'], $s);
+            $s = preg_replace_callback("#\\{loop\\s+{$this->vtag_regexp}\\s+{$this->vtag_regexp}\\}(.+?)\\{\\/loop\\}#is", [$this, 'loop_section'], $s);
+        }
+        // if / elseif
+        $s = preg_replace_callback('#\\{(if|elseif)\\s+(.*?)\\}#is', [$this, 'stripvtag_callback'], $s);
+
+        // else
+        $s = preg_replace('#\\{else\\}#is', '<?}else { ?>', $s);
+        // end if
+        $s = preg_replace('#\\{\\/(if)\\}#is', '<?}?>', $s);
+        // end block
+        $s = preg_replace('#\\{\\/(block)\\}#is', '<?}?>', $s);
+        // {else}
+        $s = preg_replace('#' . $this->const_regexp . '#', '<?=\\1?>', $s);
+
+        // check key of array
+        $s = preg_replace_callback("#\\<\\?=\\@(\\\$[a-zA-Z_]\\w*)((\\[[\\$\\[\\]\\w\\']+\\])+)\\?\\>#is", [$this, 'array_keyexists'], $s);
+        // replace special tags
+        if ($this->tag_search) {
+            $s = str_replace($this->tag_search, $this->tag_replace, $s);
+            // maybe eval in javascript
+            if (strpos($s, '<!--[') !== false) {
+                $s = str_replace($this->tag_search, $this->tag_replace, $s);
+            }
+        }
+        // compile output function
+        $s = $this->compile_output($s, '$this->rewrite_echo');
+
+        if (! file_put_contents($obj_file, $s)) {
+            throw new Exception('template stat error: ' . $file);
+        }
+        return $obj_file;
+    }
+
+    /**
+     * compile output.
      *
      * @param $s
      * @param $out_method
@@ -296,7 +338,7 @@ class ZView
                 ];
                 continue;
             }
-            list($type,) = $token;
+            list($type) = $token;
             switch ($type) {/*
         case T_OPEN_TAG:
             $token['content'] =
@@ -315,7 +357,7 @@ class ZView
                     break;
                 case T_ECHO:
                     $token['content'] = $out_method;
-                    if (!$this->find_next_token($tokens, $token_index + 1, array('('), [T_WHITESPACE])) {
+                    if (! $this->find_next_token($tokens, $token_index + 1, ['('], [T_WHITESPACE])) {
                         $token['content'] .= '(';
                         $print_not_end    = 1;
                     }
@@ -349,11 +391,12 @@ __OUT__)', $token_content) . ';?' . '>';
     }
 
     /**
-     * find next token
+     * find next token.
      *
      * @param $list
      * @param $index
      * @param $keywords
+     * @param mixed $skip_type
      *
      * @return int
      */
@@ -365,20 +408,19 @@ __OUT__)', $token_content) . ';?' . '>';
             }
             $str     = isset($list[$index]['content']) ? $list[$index]['content'] : (isset($list[$index][1]) ? $list[$index][1] : $list[$index]);
             $keyword = trim($str);
-            if (!$keyword) {
+            if (! $keyword) {
                 continue;
             }
             if (in_array(strtolower($keyword), $keywords)) {
                 return 1;
-            } else {
-                return 0;
             }
+            return 0;
         }
         return 0;
     }
 
     /**
-     * fix array index
+     * fix array index.
      *
      * @param $matches
      *
@@ -387,35 +429,35 @@ __OUT__)', $token_content) . ';?' . '>';
     private function array_index($matches) {
         $name  = $matches[1];
         $items = $matches[2];
-        if (strpos($items, '$') === FALSE) {
-            $items = preg_replace("#\[([\$a-zA-Z_][\w\$]*)\]#is", "['\\1']", $items);
+        if (strpos($items, '$') === false) {
+            $items = preg_replace('#\\[([$a-zA-Z_][\\w$]*)\\]#is', "['\\1']", $items);
         } else {
-            $items = preg_replace("#\[([\$a-zA-Z_][\w\$]*)\]#is", "[\"\\1\"]", $items);
+            $items = preg_replace('#\\[([$a-zA-Z_][\\w$]*)\\]#is', '["\\1"]', $items);
         }
         return '<?=' . $name . $items . '?>';
     }
 
     /**
-     * process tpl
+     * process tpl.
      *
      * @param $s
      */
     private function compile_block(&$s) {
         // replace eval block
-        $s = preg_replace_callback($this->eval_regexp, array($this, 'stripvtag_callback'), $s);
+        $s = preg_replace_callback($this->eval_regexp, [$this, 'stripvtag_callback'], $s);
         // remove template comment
-        $s = preg_replace("#<!--\#(.+?)-->#s", "", $s);
+        $s = preg_replace('#<!--\\#(.+?)-->#s', '', $s);
         // replace dynamic tag
-        $s = preg_replace("#<!--{(.+?)}-->#s", "{\\1}", $s);
+        $s = preg_replace('#<!--{(.+?)}-->#s', '{\\1}', $s);
         // replace block
-        $s = preg_replace_callback("#{block[\s]+(\w+[^\r\n]+)}#is", array($this, 'blocktag_callback'), $s);
-        $s = preg_replace("#{(block_\w+[^\r\n]+)}#is", '{$$1}', $s);
+        $s = preg_replace_callback("#{block[\\s]+(\\w+[^\r\n]+)}#is", [$this, 'blocktag_callback'], $s);
+        $s = preg_replace("#{(block_\\w+[^\r\n]+)}#is", '{$$1}', $s);
         // replace function
-        $s = preg_replace_callback('#{((\\$?(?:\w+[\:\->]+)?\w+)\([^};]*?\);?)}#is', array($this, 'funtag_callback'), $s);
+        $s = preg_replace_callback('#{((\\$?(?:\w+[\:\->]+)?\w+)\([^};]*?\);?)}#is', [$this, 'funtag_callback'], $s);
     }
 
     /**
-     * fix echo array index key
+     * fix echo array index key.
      *
      * @param $name
      * @param $items
@@ -423,12 +465,11 @@ __OUT__)', $token_content) . ';?' . '>';
      * @return string
      */
     private function array_keyexists($name, $items) {
-        return "<? echo isset($name$items)?$name$items:'';?>";
+        return "<? echo isset({$name}{$items})?{$name}{$items}:'';?>";
     }
 
-
     /**
-     * strip tag
+     * strip tag.
      *
      * @param $matchs
      *
@@ -457,15 +498,15 @@ __OUT__)', $token_content) . ';?' . '>';
 
     /**
      * @param            $s
-     * @param bool|FALSE $instring
+     * @param bool|false $instring
      *
      * @return mixed
      */
-    private function stripvtag($s, $instring = FALSE) {
-        if (strpos($s, '<? echo isset') !== FALSE) {
+    private function stripvtag($s, $instring = false) {
+        if (strpos($s, '<? echo isset') !== false) {
             $s = preg_replace('#<\? echo isset\((.*?)\) \? (\\1) : \'\';\?>#is', $instring ? '{\\1}' : '\\1', $s);
         }
-        return preg_replace("/" . $this->vtag_regexp . "/is", "\\1", str_replace("\\\"", '"', $s));
+        return preg_replace('/' . $this->vtag_regexp . '/is', '\\1', str_replace('\\"', '"', $s));
     }
 
     /**
@@ -476,26 +517,25 @@ __OUT__)', $token_content) . ';?' . '>';
     private function striptag_callback($matches) {
         if (trim($matches[2]) == '') {
             return $matches[0];
-        } else {
-            // skip script type is tpl
-            if (stripos($matches[1], ' type="tpl"') !== FALSE) {
-                return $matches[0];
-            }
-            $search             = '<!--[script=' . count($this->tag_search) . ']-->';
-            $this->tag_search[] = $search;
-            // filter script comment
-            $matches[0] = preg_replace('#(//[^\'";><]*$|/\*[\s\S]*?\*/)#im', '', $matches[0]);
-            // replace variable and constant
-            // e.g.
-            // {$a} {$a[1]} {$a[desc]} {ROOT}
-            $matches[0]          = preg_replace('#{((?:\$[\w\[\]]+)|(?:[A-Z_]+))}#s', '<' . '?php echo $1;?' . '>', $matches[0]);
-            $this->tag_replace[] = $matches[0];
-            return $search;
         }
+        // skip script type is tpl
+        if (stripos($matches[1], ' type="tpl"') !== false) {
+            return $matches[0];
+        }
+        $search             = '<!--[script=' . count($this->tag_search) . ']-->';
+        $this->tag_search[] = $search;
+        // filter script comment
+        $matches[0] = preg_replace('#(//[^\'";><]*$|/\*[\s\S]*?\*/)#im', '', $matches[0]);
+        // replace variable and constant
+        // e.g.
+        // {$a} {$a[1]} {$a[desc]} {ROOT}
+        $matches[0]          = preg_replace('#{((?:\$[\w\[\]]+)|(?:[A-Z_]+))}#s', '<' . '?php echo $1;?' . '>', $matches[0]);
+        $this->tag_replace[] = $matches[0];
+        return $search;
     }
 
     /**
-     * function tag callback
+     * function tag callback.
      *
      * @param $matchs
      *
@@ -509,7 +549,7 @@ __OUT__)', $token_content) . ';?' . '>';
     }
 
     /**
-     * block tag callback
+     * block tag callback.
      *
      * @param $matchs
      *
@@ -525,7 +565,7 @@ __OUT__)', $token_content) . ';?' . '>';
     }
 
     /**
-     * for loop
+     * for loop.
      *
      * @param $matchs
      *
@@ -547,12 +587,12 @@ __OUT__)', $token_content) . ';?' . '>';
         $arr       = $this->stripvtag($arr);
         $k         = $this->stripvtag($k);
         $v         = $this->stripvtag($v);
-        $statement = str_replace("\\\"", '"', $statement);
-        return $k ? "<? if(!empty($arr)) { foreach($arr as $k=>$v) {?>$statement<? }}?>" : "<? if(!empty($arr)) { foreach($arr as $v) {?>$statement<? }} ?>";
+        $statement = str_replace('\\"', '"', $statement);
+        return $k ? "<? if(!empty({$arr})) { foreach({$arr} as {$k}=>{$v}) {?>{$statement}<? }}?>" : "<? if(!empty({$arr})) { foreach({$arr} as {$v}) {?>{$statement}<? }} ?>";
     }
 
     /**
-     * rewrite echo
+     * rewrite echo.
      *
      * @param mixed ...$args
      */
@@ -565,40 +605,5 @@ __OUT__)', $token_content) . ';?' . '>';
         foreach ($args as $text) {
             $echo($text);
         }
-    }
-
-    /**
-     * show template
-     *
-     * @param $file
-     *
-     * @throws Exception
-     */
-    function show($file) {
-        $start_time = microtime(1);
-        //error_reporting(E_ALL);
-        //log::info(1, $file);
-        $this->last_object_file = $this->get_compile_tpl($file);
-        //log::info(2, $object_file);
-        extract($this->vars);
-        /*$object_body = file_get_contents($object_file);
-        $object_body = base64_encode($object_body);
-        include("data://text/plain;base64," . $object_file);*/
-
-        include $this->last_object_file;
-
-        $this->last_used_time = microtime(1) - $start_time;
-    }
-
-    /**
-     * get debug info
-     *
-     * @return array
-     */
-    function get_debug_info() {
-        return [
-            'object_file' => $this->last_object_file,
-            'use_time'    => $this->last_used_time,
-        ];
     }
 }

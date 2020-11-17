@@ -117,7 +117,7 @@ class ZView {
         $obj_file      = $this->get_compile_path($filename);
         $is_obj_exists = is_file($obj_file);
         if ($is_obj_exists) {
-            if ($this->conf['force'] > 1 && rand(0, $this->conf['force']) == $this->conf['force']) {
+            if ($this->conf['force'] >= 1 && rand(1, $this->conf['force']) == $this->conf['force']) {
                 // refresh object file
             } else {
                 return $obj_file;

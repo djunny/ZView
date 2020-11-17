@@ -18,7 +18,7 @@ function view($callback = FALSE) {
         'tpl_ext'    => '.htm',
         'tpl_prefix' => 'tpl',
         'tmp_path'   => __DIR__ . '/tmp/',
-        'force'      => 5,
+        'force'      => 5,// 刷新频率（1为强制每次检测刷新缓存,大于2以上代表 rand(1,force) 检测刷新）
         'view_path'  => [
             __DIR__ . '/view/',
         ],

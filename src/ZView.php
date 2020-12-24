@@ -243,7 +243,7 @@ class ZView {
      * @return string
      */
     private function find_origin_path($filename) {
-        \Log::info($filename);
+        $file     = '';
         $filename = $this->get_template_ext($filename);
         foreach ($this->conf['view_path'] as $path) {
             if (is_file($path . $filename)) {
